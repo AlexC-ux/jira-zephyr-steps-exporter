@@ -201,7 +201,10 @@ function formatFieldValue(value) {
   if (value === null || value === undefined) {
     return "";
   }
-  return String(value);
+  return String(value)
+    .replace(/<br ?\/>/g, "")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/, ">");
 }
 
 // Главная функция
@@ -295,7 +298,7 @@ async function main() {
             const row = [
               issueKey, // Task Key
               trKey, // Test Result Key
-              formatFieldValue(script.index + 1), // Step Index
+              script.index + 1, // Step Index
               formatFieldValue(script.description), // Action
               formatFieldValue(script.expectedResult), // Expected Result
             ];
@@ -321,6 +324,19 @@ async function main() {
       break;
     }
   }
+
+  // Сортировка всех строк по Task Key + Test Result Key + Step Index (число)
+  log("Сортировка результатов...");
+  allDataRows.sort((a, b) => {
+    // Сортировка по Task Key
+    if (a[0] !== b[0]) return a[0].localeCompare(b[0]);
+    // Затем по Test Result Key
+    if (a[1] !== b[1]) return a[1].localeCompare(b[1]);
+    // Внутри группы по Step Index как числу
+    const idxA = Number(a[2]) || 0;
+    const idxB = Number(b[2]) || 0;
+    return idxA - idxB;
+  });
 
   log("Создание рабочей книги...");
   const workbook = createWorkbook();

@@ -31,16 +31,17 @@ const config = {
   password: process.env.jira_password || throwEnvError(),
 
   // JQL фильтр для поиска задач
-  jql: "((fixVersion IN (13522,13523,13525,13526,13527,13528,13529,13530,13531,13532,13533,13534,13569,13573,13575,13577,13578,13580,13581,13582,13583,13584,13585,13567,13586,13587,13588,13589,13590,13591,13612,13613,13615,13616,13617,13618,13620,13621,13626,13629,13630,13631,13632,13633,13634,13636,13640,13642,13644,13645,13647,13648,13649,13650,13651)))",
+  jql: "((fixVersion IN (13581,13582,13583,13584,13585,13567,13586,13587,13588,13589,13590,13591)))",
+  // jql: "((fixVersion IN (13522,13523,13525,13526,13527,13528,13529,13530,13531,13532,13533,13534,13569,13573,13575,13577,13578,13580,13581,13582,13583,13584,13585,13567,13586,13587,13588,13589,13590,13591,13612,13613,13615,13616,13617,13618,13620,13621,13626,13629,13630,13631,13632,13633,13634,13636,13640,13642,13644,13645,13647,13648,13649,13650,13651)))",
 
   // Максимальное количество задач за один запрос (максимум 1000)
   maxResults: 100,
 
   // Имя выходного CSV файла
-  outputFile: "output/test_steps.csv",
+  outputFile: `output/${Date.now()}_test_steps.csv`,
 
   // Имя выходного ODS файла
-  outputOdsFile: "output/test_steps.ods",
+  outputOdsFile: `output/${Date.now()}_test_steps.ods`,
 
   // Формат экспорта: "ods" или "csv"
   exportFormat: "ods",
@@ -294,7 +295,7 @@ async function main() {
             const row = [
               issueKey, // Task Key
               trKey, // Test Result Key
-              formatFieldValue(script.index), // Step Index
+              formatFieldValue(script.index + 1), // Step Index
               formatFieldValue(script.description), // Action
               formatFieldValue(script.expectedResult), // Expected Result
             ];
@@ -321,7 +322,6 @@ async function main() {
     }
   }
 
-  // Создаем рабочую книгу и записываем данные
   log("Создание рабочей книги...");
   const workbook = createWorkbook();
   addSheetToWorkbook(workbook, allDataRows);
@@ -345,6 +345,7 @@ async function main() {
 
 // Запуск
 main().catch((error) => {
+  console.error(error);
   log(`Фатальная ошибка: ${error.message}`);
   process.exit(1);
 });

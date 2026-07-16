@@ -202,7 +202,7 @@ function formatFieldValue(value) {
     return "";
   }
   return String(value)
-    .replace(/<br ?\/>/g, "")
+    .replace(/<br ?\/>/g, "\n")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/, ">");
 }

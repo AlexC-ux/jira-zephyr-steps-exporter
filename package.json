@@ -1,0 +1,14 @@
+{
+  "name": "jira-zephyr-test-steps-export",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "main.js",
+  "description": "Экспорт шагов тестов из Jira Zephyr в CSV",
+  "scripts": {
+    "start": "node main.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "xlsx": "^0.18.5"
+  }
+}

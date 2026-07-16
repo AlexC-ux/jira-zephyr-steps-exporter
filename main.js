@@ -182,8 +182,56 @@ function createWorkbook() {
 // Добавление листа в рабочую книгу
 function addSheetToWorkbook(workbook, data, sheetName = "Test Steps") {
   const worksheet = xlsx.utils.aoa_to_sheet([TABLE_HEADERS, ...data]);
+  
+  // Добавляем объединения для одинаковых значений
+  const merges = calculateMerges(data);
+  if (merges.length > 0) {
+    if (!worksheet["!merges"]) worksheet["!merges"] = [];
+    worksheet["!merges"].push(...merges);
+  }
+  
   xlsx.utils.book_append_sheet(workbook, worksheet, sheetName);
   return worksheet;
+}
+
+// Вычисление диапазонов для объединения ячеек
+// data - массив строк данных (без заголовков)
+// Заголовки добавляются как первая строка в worksheet, поэтому индексы данных сдвигаются на +1
+function calculateMerges(data) {
+  const merges = [];
+  
+  // Для столбца Task Key (0)
+  let begin = 0;
+  for (let i = 1; i <= data.length; i++) {
+    if (i === data.length || data[i][0] !== data[begin][0]) {
+      if (i - begin > 1) {
+        // begin + 1 и i - 1 + 1 - сдвиг на 1 строку для заголовков
+        merges.push({ s: {r: begin + 1, c: 0}, e: {r: i - 1 + 1, c: 0 } });
+      }
+      begin = i;
+    }
+  }
+  
+  // Для столбца Test Result Key (1)
+  begin = 0;
+  for (let i = 1; i <= data.length; i++) {
+    if (i === data.length || data[i][1] !== data[begin][1]) {
+      if (i - begin > 1) {
+        merges.push({ s: {r: begin + 1, c: 1}, e: {r: i - 1 + 1, c: 1 } });
+      }
+      begin = i;
+    }
+  }
+  
+  // Сортировка объединений для корректной работы
+  merges.sort((a, b) => {
+    if (a.s.r !== b.s.r) return a.s.r - b.s.r;
+    if (a.s.c !== b.s.c) return a.s.c - b.s.c;
+    if (a.e.r !== b.e.r) return a.e.r - b.e.r;
+    return a.e.c - b.e.c;
+  });
+  
+  return merges;
 }
 
 // Запись книги в ODS файл

@@ -59,7 +59,9 @@ const allDataRows = [];
 const tasksWithoutTests = [];
 
 const customFieldsExpression = process.env.custom_jira_fields_expr;
-const customFieldsCount = customFieldsExpression.split(",").length;
+const customFieldsCount = customFieldsExpression
+  ? customFieldsExpression.split(",").length
+  : 0;
 // Логирование с временной меткой
 function log(message) {
   const timestamp = new Date().toISOString();
@@ -222,10 +224,18 @@ function calculateMerges(data) {
     ) {
       if (i - begin > 1) {
         // begin + 1 и i - 1 + 1 - сдвиг на 1 строку для заголовков
-        merges.push({
-          s: { r: begin + 1, c: customFieldsCount },
-          e: { r: i - 1 + 1, c: customFieldsCount },
-        });
+        if (customFieldsCount > 0) {
+          for (
+            let fieldIndex = 0;
+            fieldIndex < customFieldsCount + 1;
+            fieldIndex++
+          ) {
+            merges.push({
+              s: { r: begin + 1, c: fieldIndex },
+              e: { r: i - 1 + 1, c: fieldIndex },
+            });
+          }
+        }
       }
       begin = i;
     }

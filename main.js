@@ -55,7 +55,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const customFieldsExpression = process.env.custom_jira_fields_expr;
-
+const customFieldsCount = customFieldsExpression.split(",").length;
 // Логирование с временной меткой
 function log(message) {
   const timestamp = new Date().toISOString();
@@ -208,10 +208,16 @@ function calculateMerges(data) {
   // Для столбца Task Key (0)
   let begin = 0;
   for (let i = 1; i <= data.length; i++) {
-    if (i === data.length || data[i][2] !== data[begin][2]) {
+    if (
+      i === data.length ||
+      data[i][customFieldsCount] !== data[begin][customFieldsCount]
+    ) {
       if (i - begin > 1) {
         // begin + 1 и i - 1 + 1 - сдвиг на 1 строку для заголовков
-        merges.push({ s: { r: begin + 1, c: 2 }, e: { r: i - 1 + 1, c: 2 } });
+        merges.push({
+          s: { r: begin + 1, c: customFieldsCount },
+          e: { r: i - 1 + 1, c: customFieldsCount },
+        });
       }
       begin = i;
     }
@@ -220,9 +226,15 @@ function calculateMerges(data) {
   // Для столбца Test Result Key (1)
   begin = 0;
   for (let i = 1; i <= data.length; i++) {
-    if (i === data.length || data[i][3] !== data[begin][3]) {
+    if (
+      i === data.length ||
+      data[i][customFieldsCount + 1] !== data[begin][customFieldsCount + 1]
+    ) {
       if (i - begin > 1) {
-        merges.push({ s: { r: begin + 1, c: 3 }, e: { r: i - 1 + 1, c: 3 } });
+        merges.push({
+          s: { r: begin + 1, c: customFieldsCount + 1 },
+          e: { r: i - 1 + 1, c: customFieldsCount + 1 },
+        });
       }
       begin = i;
     }

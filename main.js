@@ -7,7 +7,13 @@ import { configDotenv } from "dotenv";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { JSDOM } from "jsdom";
 import * as xlsx from "xlsx";
+
+// Создаем DOMParser через JSDOM
+const dom = new JSDOM("");
+const { window } = dom;
+const { DOMParser } = window;
 
 configDotenv({ path: ".env" });
 
@@ -106,21 +112,15 @@ async function getIssuesByJql(jql, startAt = 0) {
 async function getTestResultsByIssue(issueId) {
   const endpoint = `/rest/tests/1.0/issue/${issueId}/tracelinks?maxResults=50&startAt=0`;
   try {
-    const data = await jiraRequest(endpoint);
+    const traceLinksData = await jiraRequest(endpoint);
     const testResults = [];
-
-    // Проходим по всем блокам и собираем testResult
-    const blocks = [
-      data.testResult?.blocks?.traceLinks,
-      data.testRun?.blocks?.traceLinks,
-      data.testCase?.blocks?.traceLinks,
-    ];
-
+    // Проходим по всем блокам и собираем coverage
+    const blocks = [traceLinksData.testCase.coverage.traceLinks];
     for (const block of blocks) {
       if (block && Array.isArray(block)) {
         for (const link of block) {
-          if (link.testResult && link.testResult.key) {
-            testResults.push(link.testResult);
+          if (link.testCase) {
+            testResults.push(link.testCase);
           }
         }
       }
@@ -236,10 +236,12 @@ function formatFieldValue(value) {
   if (value === null || value === undefined) {
     return "";
   }
-  return String(value)
-    .replace(/<br ?\/>/g, "\n")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/, ">");
+
+  const htmlString = String(value);
+  const doc = new DOMParser().parseFromString(htmlString, "text/html");
+  let text = doc.body.textContent || doc.textContent || "";
+
+  return text.replace(/\s+/g, " ").trim();
 }
 
 // Главная функция
@@ -310,7 +312,7 @@ async function main() {
           const trKey = testResult.key;
           log(`    -> Получение шагов для ${trKey}...`);
 
-          const scriptResults = await getTestScriptResults(trKey);
+          const scriptResults = await getTestScriptResults(testResult.id);
 
           if (scriptResults.length === 0) {
             log(`      -> Нет шагов для ${trKey}`);

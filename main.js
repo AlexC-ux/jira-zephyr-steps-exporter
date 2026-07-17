@@ -223,18 +223,15 @@ function calculateMerges(data) {
       data[i][customFieldsCount] !== data[begin][customFieldsCount]
     ) {
       if (i - begin > 1) {
-        // begin + 1 и i - 1 + 1 - сдвиг на 1 строку для заголовков
-        if (customFieldsCount > 0) {
-          for (
-            let fieldIndex = 0;
-            fieldIndex < customFieldsCount + 1;
-            fieldIndex++
-          ) {
-            merges.push({
-              s: { r: begin + 1, c: fieldIndex },
-              e: { r: i - 1 + 1, c: fieldIndex },
-            });
-          }
+        for (
+          let fieldIndex = 0;
+          fieldIndex < customFieldsCount + 1;
+          fieldIndex++
+        ) {
+          merges.push({
+            s: { r: begin + 1, c: fieldIndex },
+            e: { r: i - 1 + 1, c: fieldIndex },
+          });
         }
       }
       begin = i;

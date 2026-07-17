@@ -300,10 +300,6 @@ async function main() {
 
       // Обрабатываем каждую задачу
       for (const issue of searchResult.issues) {
-        // Логирование для AX1-17133
-        if (issue.key === "AX1-17133") {
-          log(`*** ДЕБАГ: Обработка задачи AX1-17133 (ID: ${issue.id})`);
-        }
         const issueKey = issue.key;
         const issueId = issue.id;
 

@@ -251,10 +251,21 @@ function formatFieldValue(value) {
   }
 
   const htmlString = String(value);
-  const doc = new DOMParser().parseFromString(htmlString, "text/html");
+  
+  // Сохраняем позиции переносов строк (закрытие блочных тегов, br, p, div и т.д.)
+  // Заменяем их на \n перед очисткой
+  const textWithLineBreaks = htmlString
+    // Заменяем <br> и <br/> на \n
+    .replace(/<br\s*\/?>|\n/g, "\n")
+    // Заменяем закрытие блочных тегов на \n
+    .replace(/<\/(p|div|li|h[1-6]|tr|td|th|blockquote|pre|article|section|header|footer|nav|aside)>/gi, "\n");
+  
+  // Теперь парсим очищенный HTML
+  const doc = new DOMParser().parseFromString(textWithLineBreaks, "text/html");
   let text = doc.body.textContent || doc.textContent || "";
 
-  return text.replace(/\s+/g, " ").trim();
+  // Очищаем множественные пробелы, но оставляем \n
+  return text.replace(/[^\S\n]+/g, " ").trim();
 }
 
 // Главная функция

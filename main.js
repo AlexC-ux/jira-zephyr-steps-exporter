@@ -31,20 +31,12 @@ const config = {
   password: process.env.jira_password || throwEnvError(),
 
   // JQL фильтр для поиска задач
-  jql: "((fixVersion IN (13581,13582,13583,13584,13585,13567,13586,13587,13588,13589,13590,13591)))",
-  // jql: "((fixVersion IN (13522,13523,13525,13526,13527,13528,13529,13530,13531,13532,13533,13534,13569,13573,13575,13577,13578,13580,13581,13582,13583,13584,13585,13567,13586,13587,13588,13589,13590,13591,13612,13613,13615,13616,13617,13618,13620,13621,13626,13629,13630,13631,13632,13633,13634,13636,13640,13642,13644,13645,13647,13648,13649,13650,13651)))",
+  jql: process.env.jira_jql || throwEnvError(),
+
+  outputFileName: `output/${process.env.outpit_file_name ? `${process.env.outpit_file_name}` : `${Date.now()}`}.ods`,
 
   // Максимальное количество задач за один запрос (максимум 1000)
-  maxResults: 100,
-
-  // Имя выходного CSV файла
-  outputFile: `output/${Date.now()}_test_steps.csv`,
-
-  // Имя выходного ODS файла
-  outputOdsFile: `output/${Date.now()}_test_steps.ods`,
-
-  // Формат экспорта: "ods" или "csv"
-  exportFormat: "ods",
+  maxResults: parseInt(`${process.env.jira_task_load_chunk}`) || 100,
 };
 
 // ============================================
@@ -182,14 +174,14 @@ function createWorkbook() {
 // Добавление листа в рабочую книгу
 function addSheetToWorkbook(workbook, data, sheetName = "Test Steps") {
   const worksheet = xlsx.utils.aoa_to_sheet([TABLE_HEADERS, ...data]);
-  
+
   // Добавляем объединения для одинаковых значений
   const merges = calculateMerges(data);
   if (merges.length > 0) {
     if (!worksheet["!merges"]) worksheet["!merges"] = [];
     worksheet["!merges"].push(...merges);
   }
-  
+
   xlsx.utils.book_append_sheet(workbook, worksheet, sheetName);
   return worksheet;
 }
@@ -199,30 +191,30 @@ function addSheetToWorkbook(workbook, data, sheetName = "Test Steps") {
 // Заголовки добавляются как первая строка в worksheet, поэтому индексы данных сдвигаются на +1
 function calculateMerges(data) {
   const merges = [];
-  
+
   // Для столбца Task Key (0)
   let begin = 0;
   for (let i = 1; i <= data.length; i++) {
     if (i === data.length || data[i][0] !== data[begin][0]) {
       if (i - begin > 1) {
         // begin + 1 и i - 1 + 1 - сдвиг на 1 строку для заголовков
-        merges.push({ s: {r: begin + 1, c: 0}, e: {r: i - 1 + 1, c: 0 } });
+        merges.push({ s: { r: begin + 1, c: 0 }, e: { r: i - 1 + 1, c: 0 } });
       }
       begin = i;
     }
   }
-  
+
   // Для столбца Test Result Key (1)
   begin = 0;
   for (let i = 1; i <= data.length; i++) {
     if (i === data.length || data[i][1] !== data[begin][1]) {
       if (i - begin > 1) {
-        merges.push({ s: {r: begin + 1, c: 1}, e: {r: i - 1 + 1, c: 1 } });
+        merges.push({ s: { r: begin + 1, c: 1 }, e: { r: i - 1 + 1, c: 1 } });
       }
       begin = i;
     }
   }
-  
+
   // Сортировка объединений для корректной работы
   merges.sort((a, b) => {
     if (a.s.r !== b.s.r) return a.s.r - b.s.r;
@@ -230,18 +222,13 @@ function calculateMerges(data) {
     if (a.e.r !== b.e.r) return a.e.r - b.e.r;
     return a.e.c - b.e.c;
   });
-  
+
   return merges;
 }
 
 // Запись книги в ODS файл
 function writeOdsFile(workbook, filePath) {
   xlsx.writeFile(workbook, filePath, { bookType: "ods" });
-}
-
-// Запись книги в CSV файл
-function writeCsvFile(workbook, filePath) {
-  xlsx.writeFile(workbook, filePath, { bookType: "csv" });
 }
 
 // Форматирование значения для экспорта (приведение к строке)
@@ -260,10 +247,8 @@ async function main() {
   log("=== Запуск экспорта шагов тестов из Jira Zephyr ===");
   log(`JIRA URL: ${config.jiraUrl}`);
   log(`JQL: ${config.jql}`);
-  log(`Формат экспорта: ${config.exportFormat}`);
 
-  const outputFileName =
-    config.exportFormat === "ods" ? config.outputOdsFile : config.outputFile;
+  const outputFileName = config.outputFileName;
   const outputFilePath = path.join(__dirname, outputFileName);
 
   log(`Выходной файл: ${outputFilePath}`);
@@ -391,11 +376,7 @@ async function main() {
   addSheetToWorkbook(workbook, allDataRows);
 
   // Записываем файл в зависимости от формата
-  if (config.exportFormat === "ods") {
-    writeOdsFile(workbook, outputFilePath);
-  } else {
-    writeCsvFile(workbook, outputFilePath);
-  }
+  writeOdsFile(workbook, outputFilePath);
 
   log(`Файл сохранен: ${outputFilePath}`);
 

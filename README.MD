@@ -195,7 +195,6 @@ GET /rest/tests/1.0/testresult/{testResultKey}?fields={fields}
 ## 🐛 Известные ограничения
 
 - Максимальный размер пачки задач: 1000 (ограничение Jira API)
-- Скрипт обрабатывает только Zephyr for Jira Server API (не Cloud)
 - Требуется наличие прав на чтение всех задач по JQL запросу
 
 ## 📝 Примечания
@@ -203,24 +202,6 @@ GET /rest/tests/1.0/testresult/{testResultKey}?fields={fields}
 ### Безопасность
 
 ⚠️ **Не коммитьте файл `.env` в репозиторий!** Он уже добавлен в `.gitignore`.
-
-Для доступа к Jira API рекомендуется использовать:
-
-- API tokens вместо паролей
-- Переменные окружения для хранения секретов
-
-### Настройка .env в VS Code
-
-Если используете VS Code, можно открыть `.env` в редакторе и изменить значения:
-
-```env
-jira_url="https://jira.yourserver.com"
-jira_username="your.username@company.com"
-jira_password="your_password_or_token"
-jira_task_load_chunk=50
-jira_jql="project = YOURPROJECT"
-outpit_file_name="jira_test_steps"
-```
 
 ### Решение проблем
 
@@ -239,8 +220,3 @@ outpit_file_name="jira_test_steps"
 **Ограничение по количеству запросов:**
 
 - Увеличьте значение `jira_task_load_chunk`
-- Добавьте задержки между запросами в коде (строка 356)
-
-## 📄 Лицензия
-
-MIT License

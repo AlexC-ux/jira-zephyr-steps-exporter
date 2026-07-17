@@ -136,15 +136,15 @@ async function getTestResultsByIssue(issueId) {
 }
 
 // Получить шаги (testScriptResults) из testResult
-async function getTestScriptResults(testResultKey) {
+async function getTestScriptTests(testResultKey) {
   // Поля для запроса: testScriptResults с нужными атрибутами
   const fields =
-    "id,environment(id,name),automated,estimatedTime,customFieldValues,scenarioResultIds,executionTime,iterationId,plannedStartDate,plannedEndDate,actualStartDate,actualEndDate,executionDate,jiraVersionId,comment,userKey,assignedTo,testResultStatusId,testCase(id,key,name,projectId,projectKey,objective,precondition,componentId),testRun(projectId),testScriptResults(id,testResultStatusId,executionDate,comment,index,description,expectedResult,testData,traceLinks,attachments,sourceScriptType,parameterSetId,customFieldValues,stepAttachmentsMapping,reflectRef),traceLinks,attachments,labels,customFieldValues";
+    "id,projectId,archived,key,name,objective,majorVersion,latestVersion,precondition,folder(id,fullName),status,priority,estimatedTime,averageTime,componentId,owner,labels,customFieldValues,testScript(id,text,steps(index,reflectRef,description,text,expectedResult,testData,attachments,customFieldValues,id,stepParameters(id,testCaseParameterId,value),testCase(projectId,id,key,name,archived,majorVersion,latestVersion,parameters(id,name,defaultValue,index)))),testData,parameters(id,name,defaultValue,index),paramType";
 
-  const endpoint = `/rest/tests/1.0/testresult/${testResultKey}?fields=${fields}`;
+  const endpoint = `/rest/tests/1.0/testcase/${testResultKey}?fields=${fields}`;
   try {
     const data = await jiraRequest(endpoint);
-    return data.testScriptResults || [];
+    return data.testScript?.stepByStepScript?.steps || [];
   } catch (error) {
     log(
       `Ошибка при получении testScriptResults для ${testResultKey}: ${error.message}`,
@@ -164,6 +164,7 @@ const TABLE_HEADERS = [
   "Step Index",
   "Action (Description)",
   "Expected Result",
+  "Test data",
 ];
 
 // Создание новой рабочей книги xlsx
@@ -174,6 +175,14 @@ function createWorkbook() {
 // Добавление листа в рабочую книгу
 function addSheetToWorkbook(workbook, data, sheetName = "Test Steps") {
   const worksheet = xlsx.utils.aoa_to_sheet([TABLE_HEADERS, ...data]);
+
+  const columns = data.map((_, i) => ({
+    wch: Math.max(
+      ...data.map((row) => (row[i]?.toString().length > 80 ? 100 : 20)),
+      0,
+    ), // Берём максимальную длину содержимого
+  }));
+  worksheet["!cols"] = columns;
 
   // Добавляем объединения для одинаковых значений
   const merges = calculateMerges(data);
@@ -291,6 +300,10 @@ async function main() {
 
       // Обрабатываем каждую задачу
       for (const issue of searchResult.issues) {
+        // Логирование для AX1-17133
+        if (issue.key === "AX1-17133") {
+          log(`*** ДЕБАГ: Обработка задачи AX1-17133 (ID: ${issue.id})`);
+        }
         const issueKey = issue.key;
         const issueId = issue.id;
 
@@ -308,11 +321,23 @@ async function main() {
         log(`  -> Найдено testResult: ${testResults.length}`);
 
         // Для каждого testResult получаем шаги
+        // Используем Set для предотвращения дубликатов Test Result Key
+        const processedTestResultKeys = new Set();
         for (const testResult of testResults) {
           const trKey = testResult.key;
+
+          // Проверка на дубликат
+          if (processedTestResultKeys.has(trKey)) {
+            log(`    -> Пропуск дубликата Test Result Key: ${trKey}`);
+            continue;
+          }
+          processedTestResultKeys.add(trKey);
+
           log(`    -> Получение шагов для ${trKey}...`);
 
-          const scriptResults = await getTestScriptResults(testResult.id);
+          const scriptResults = await getTestScriptTests(testResult.id);
+
+          // TODO scriptResults это массив с шагами. Нужно добавить в csv поле testData каждого элемента
 
           if (scriptResults.length === 0) {
             log(`      -> Нет шагов для ${trKey}`);
@@ -336,6 +361,7 @@ async function main() {
               script.index + 1, // Step Index
               formatFieldValue(script.description), // Action
               formatFieldValue(script.expectedResult), // Expected Result
+              formatFieldValue(script.testData),
             ];
             allDataRows.push(row);
             totalSteps++;
@@ -375,6 +401,7 @@ async function main() {
 
   log("Создание рабочей книги...");
   const workbook = createWorkbook();
+
   addSheetToWorkbook(workbook, allDataRows);
 
   // Записываем файл в зависимости от формата

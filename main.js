@@ -54,6 +54,10 @@ const config = {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Массив для сбора всех строк данных
+const allDataRows = [];
+const tasksWithoutTests = [];
+
 const customFieldsExpression = process.env.custom_jira_fields_expr;
 const customFieldsCount = customFieldsExpression.split(",").length;
 // Логирование с временной меткой
@@ -179,7 +183,11 @@ function createWorkbook() {
 // Добавление листа в рабочую книгу
 function addSheetToWorkbook(workbook, data, sheetName = "Test Steps") {
   const merges = calculateMerges(data);
-  const worksheet = xlsx.utils.aoa_to_sheet([TABLE_HEADERS, ...data]);
+  const worksheet = xlsx.utils.aoa_to_sheet([
+    TABLE_HEADERS,
+    ...data,
+    ...tasksWithoutTests,
+  ]);
 
   const columns = data.map((_, i) => ({
     wch: Math.max(
@@ -366,9 +374,6 @@ async function main() {
   let totalTestResults = 0;
   let totalSteps = 0;
 
-  // Массив для сбора всех строк данных
-  const allDataRows = [];
-
   // Получаем все задачи (пагинация)
   let startAt = 0;
   let allIssuesFetched = false;
@@ -405,6 +410,18 @@ async function main() {
 
         if (testResults.length === 0) {
           log(`  -> Нет связанных тестов для задачи ${issueKey}`);
+
+          // Записываем задачу без тестов в отдельный массив
+          const noTestRow = [
+            ...customFields,
+            issueKey, // Task Key
+            "", // Test Result Key (пусто)
+            "", // Step Index (пусто)
+            "", // Action (пусто)
+            "", // Expected Result (пусто)
+            "", // Test data (пусто)
+          ];
+          tasksWithoutTests.push(noTestRow);
           continue;
         }
 
@@ -493,7 +510,8 @@ async function main() {
   log("Создание рабочей книги...");
   const workbook = createWorkbook();
 
-  addSheetToWorkbook(workbook, allDataRows);
+  // Добавляем лист с тестовыми кейсами
+  addSheetToWorkbook(workbook, allDataRows, "Test Steps");
 
   // Записываем файл в зависимости от формата
   writeOdsFile(workbook, outputFilePath);
@@ -502,7 +520,9 @@ async function main() {
 
   // Итоговая статистика
   log("=== Экспорт завершен ===");
-  log(`Обработано задач: ${totalIssuesProcessed}`);
+  log(`Обработано задач с тестами: ${totalIssuesProcessed}`);
+  log(`Задач без тестов: ${tasksWithoutTests.length}`);
+  log(`Всего задач: ${tasksWithoutTests.length + totalIssuesProcessed}`);
   log(`Найдено testResult: ${totalTestResults}`);
   log(`Всего шагов экспортировано: ${totalSteps}`);
   log(`Результат сохранен в: ${outputFilePath}`);

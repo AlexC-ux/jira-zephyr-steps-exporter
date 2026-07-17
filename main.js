@@ -162,13 +162,13 @@ async function getTestScriptTests(testResultKey) {
 
 // Заголовки для таблицы
 const TABLE_HEADERS = [
+  ...(customFieldsExpression?.split(",") || []),
   "Task Key",
   "Test Result Key",
   "Step Index",
   "Action (Description)",
   "Expected Result",
   "Test data",
-  ...(customFieldsExpression?.split(",") || []),
 ];
 
 // Создание новой рабочей книги xlsx
@@ -208,10 +208,10 @@ function calculateMerges(data) {
   // Для столбца Task Key (0)
   let begin = 0;
   for (let i = 1; i <= data.length; i++) {
-    if (i === data.length || data[i][0] !== data[begin][0]) {
+    if (i === data.length || data[i][2] !== data[begin][2]) {
       if (i - begin > 1) {
         // begin + 1 и i - 1 + 1 - сдвиг на 1 строку для заголовков
-        merges.push({ s: { r: begin + 1, c: 0 }, e: { r: i - 1 + 1, c: 0 } });
+        merges.push({ s: { r: begin + 1, c: 2 }, e: { r: i - 1 + 1, c: 2 } });
       }
       begin = i;
     }
@@ -220,9 +220,9 @@ function calculateMerges(data) {
   // Для столбца Test Result Key (1)
   begin = 0;
   for (let i = 1; i <= data.length; i++) {
-    if (i === data.length || data[i][1] !== data[begin][1]) {
+    if (i === data.length || data[i][3] !== data[begin][3]) {
       if (i - begin > 1) {
-        merges.push({ s: { r: begin + 1, c: 1 }, e: { r: i - 1 + 1, c: 1 } });
+        merges.push({ s: { r: begin + 1, c: 3 }, e: { r: i - 1 + 1, c: 3 } });
       }
       begin = i;
     }
@@ -251,15 +251,18 @@ function formatFieldValue(value) {
   }
 
   const htmlString = String(value);
-  
+
   // Сохраняем позиции переносов строк (закрытие блочных тегов, br, p, div и т.д.)
   // Заменяем их на \n перед очисткой
   const textWithLineBreaks = htmlString
     // Заменяем <br> и <br/> на \n
     .replace(/<br\s*\/?>|\n/g, "\n")
     // Заменяем закрытие блочных тегов на \n
-    .replace(/<\/(p|div|li|h[1-6]|tr|td|th|blockquote|pre|article|section|header|footer|nav|aside)>/gi, "\n");
-  
+    .replace(
+      /<\/(p|div|li|h[1-6]|tr|td|th|blockquote|pre|article|section|header|footer|nav|aside)>/gi,
+      "\n",
+    );
+
   // Теперь парсим очищенный HTML
   const doc = new DOMParser().parseFromString(textWithLineBreaks, "text/html");
   let text = doc.body.textContent || doc.textContent || "";
@@ -373,13 +376,13 @@ async function main() {
           // Добавляем шаги в массив данных
           for (const script of scriptResults) {
             const row = [
+              ...customFields,
               issueKey, // Task Key
               trKey, // Test Result Key
               script.index + 1, // Step Index
               formatFieldValue(script.description), // Action
               formatFieldValue(script.expectedResult), // Expected Result
               formatFieldValue(script.testData),
-              ...customFields,
             ];
             allDataRows.push(row);
             totalSteps++;

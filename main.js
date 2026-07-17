@@ -9,6 +9,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { JSDOM } from "jsdom";
 import * as xlsx from "xlsx";
+import jsonpath from "jsonpath";
 
 // Создаем DOMParser через JSDOM
 const dom = new JSDOM("");
@@ -52,6 +53,8 @@ const config = {
 // Получение __dirname для ES модулей
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const customFieldsExpression = process.env.custom_jira_fields_expr;
 
 // Логирование с временной меткой
 function log(message) {
@@ -104,7 +107,7 @@ async function jiraRequest(endpoint, params = {}) {
 async function getIssuesByJql(jql, startAt = 0) {
   log(`Получение задач по JQL (startAt=${startAt})...`);
 
-  const endpoint = `/rest/api/2/search?jql=${encodeURIComponent(jql)}&startAt=${startAt}&maxResults=${config.maxResults}&expand=changelog`;
+  const endpoint = `/rest/api/2/search?jql=${encodeURIComponent(jql)}&startAt=${startAt}&maxResults=${config.maxResults}`;
   return await jiraRequest(endpoint);
 }
 
@@ -165,6 +168,7 @@ const TABLE_HEADERS = [
   "Action (Description)",
   "Expected Result",
   "Test data",
+  ...(customFieldsExpression?.split(",") || []),
 ];
 
 // Создание новой рабочей книги xlsx
@@ -178,7 +182,7 @@ function addSheetToWorkbook(workbook, data, sheetName = "Test Steps") {
 
   const columns = data.map((_, i) => ({
     wch: Math.max(
-      ...data.map((row) => (row[i]?.toString().length > 80 ? 100 : 20)),
+      ...data.map((row) => (row[i]?.toString().length > 30 ? 100 : 30)),
       0,
     ), // Берём максимальную длину содержимого
   }));
@@ -303,6 +307,12 @@ async function main() {
         const issueKey = issue.key;
         const issueId = issue.id;
 
+        const customFields = customFieldsExpression
+          ? customFieldsExpression
+              .split(",")
+              .map((expr) => jsonpath.query(issue.fields, expr).join("\n"))
+          : [];
+
         log(`Обработка задачи: ${issueKey} (ID: ${issueId})`);
 
         // Получаем testResult через traceLinks
@@ -358,6 +368,7 @@ async function main() {
               formatFieldValue(script.description), // Action
               formatFieldValue(script.expectedResult), // Expected Result
               formatFieldValue(script.testData),
+              ...customFields,
             ];
             allDataRows.push(row);
             totalSteps++;

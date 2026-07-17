@@ -178,6 +178,7 @@ function createWorkbook() {
 
 // Добавление листа в рабочую книгу
 function addSheetToWorkbook(workbook, data, sheetName = "Test Steps") {
+  const merges = calculateMerges(data);
   const worksheet = xlsx.utils.aoa_to_sheet([TABLE_HEADERS, ...data]);
 
   const columns = data.map((_, i) => ({
@@ -188,8 +189,7 @@ function addSheetToWorkbook(workbook, data, sheetName = "Test Steps") {
   }));
   worksheet["!cols"] = columns;
 
-  // Добавляем объединения для одинаковых значений
-  const merges = calculateMerges(data);
+  // Добавляем объединения для одинаковых значения
   if (merges.length > 0) {
     if (!worksheet["!merges"]) worksheet["!merges"] = [];
     worksheet["!merges"].push(...merges);
@@ -224,19 +224,77 @@ function calculateMerges(data) {
   }
 
   // Для столбца Test Result Key (1)
+  const testCaseRelatedTasks = new Set();
   begin = 0;
-  for (let i = 1; i <= data.length; i++) {
+  for (let dataIndex = 1; dataIndex <= data.length; dataIndex++) {
+    const taskKey = data[dataIndex]?.[customFieldsCount];
     if (
-      i === data.length ||
-      data[i][customFieldsCount + 1] !== data[begin][customFieldsCount + 1]
+      dataIndex === data.length ||
+      data[dataIndex][customFieldsCount + 1] !==
+        data[begin][customFieldsCount + 1]
     ) {
-      if (i - begin > 1) {
+      if (dataIndex - begin > 1) {
+        if (testCaseRelatedTasks.size > 1) {
+          const uniqueCount = (dataIndex - begin) / testCaseRelatedTasks.size;
+          // Собираем значения Action для каждого уникального шага
+          const actionValues = [];
+          const expectedResultValues = [];
+          const testDataValues = [];
+          for (let value = 1; value <= uniqueCount; value++) {
+            const rowIndex = begin + (value - 1) * testCaseRelatedTasks.size;
+            actionValues.push(data[rowIndex][customFieldsCount + 3]);
+            expectedResultValues.push(data[rowIndex][customFieldsCount + 4]);
+            testDataValues.push(data[rowIndex][customFieldsCount + 5]);
+          }
+          // Записываем value и Action в соответствующие строки
+          for (let value = 1; value <= uniqueCount; value++) {
+            for (
+              let innerIndex = 0;
+              innerIndex < testCaseRelatedTasks.size;
+              innerIndex++
+            ) {
+              const rowIndex =
+                begin + (value - 1) * testCaseRelatedTasks.size + innerIndex;
+              data[rowIndex][customFieldsCount + 2] = value;
+              data[rowIndex][customFieldsCount + 3] = actionValues[value - 1];
+              data[rowIndex][customFieldsCount + 4] =
+                expectedResultValues[value - 1];
+              data[rowIndex][customFieldsCount + 5] = testDataValues[value - 1];
+            }
+          }
+          // Объединения для столбцов Action, Expected Result, Test Data
+          for (let value = 1; value <= uniqueCount; value++) {
+            const mergeStart =
+              begin + (value - 1) * testCaseRelatedTasks.size + 1;
+            const mergeEnd = mergeStart + testCaseRelatedTasks.size - 1;
+            merges.push({
+              s: { r: mergeStart, c: customFieldsCount + 2 },
+              e: { r: mergeEnd, c: customFieldsCount + 2 },
+            });
+            merges.push({
+              s: { r: mergeStart, c: customFieldsCount + 3 },
+              e: { r: mergeEnd, c: customFieldsCount + 3 },
+            });
+            merges.push({
+              s: { r: mergeStart, c: customFieldsCount + 4 },
+              e: { r: mergeEnd, c: customFieldsCount + 4 },
+            });
+            merges.push({
+              s: { r: mergeStart, c: customFieldsCount + 5 },
+              e: { r: mergeEnd, c: customFieldsCount + 5 },
+            });
+          }
+        }
         merges.push({
           s: { r: begin + 1, c: customFieldsCount + 1 },
-          e: { r: i - 1 + 1, c: customFieldsCount + 1 },
+          e: { r: dataIndex - 1 + 1, c: customFieldsCount + 1 },
         });
       }
-      begin = i;
+      begin = dataIndex;
+      testCaseRelatedTasks.clear();
+    }
+    if (!!taskKey) {
+      testCaseRelatedTasks.add(taskKey);
     }
   }
 

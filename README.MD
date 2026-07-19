@@ -597,7 +597,7 @@ pipeline {
 
 ## 📄 Лицензия
 
-Распространяется под лицензией [MIT](LICENSE).
+Распространяется под лицензией [GNU General Public License v3.0](LICENSE).
 
 ---
 
